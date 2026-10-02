@@ -1,56 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
-import toast from 'react-hot-toast';
-// 훅
-import useAuth from '@/hooks/useAuth';
 // 컴포넌트
 import BasicButton from '@/components/button/BasicButton';
 import Input from '@/components/common/Input';
 
 export default function SignupStep1({ onPrev, onNext }) {
-  const { useCheckEmail, checkResult, checkEmail } = useAuth();
-  const { control, handleSubmit, watch, setError, clearErrors } = useFormContext();
+  const { control, handleSubmit, watch } = useFormContext();
   const pw = watch('pw');
-  const email = watch('email');
-
-  const isValidEmail = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email || '');
-
-  const isCheckEmail = async (email) => {
-    if (!email) {
-      toast.error('이메일을 입력해주세요.');
-      return;
-    }
-
-    try {
-      const result = await useCheckEmail(email);
-
-      // checkResult
-      if (result.result) {
-        //중복된 이메일
-        setError('email', {
-          type: 'manual',
-          message: result.message,
-        });
-        checkEmail(null);
-      } else {
-        // 사용가능한 이메일
-        clearErrors('email');
-        toast.success(result.message);
-        checkEmail(email);
-      }
-    } catch (error) {
-      toast.error('이메일 확인 중 오류가 발생했습니다.');
-      checkEmail(null);
-    }
-  };
-
-  // 이메일이 변경되면 중복확인 상태 초기화
-  useEffect(() => {
-    if (email !== checkResult) {
-      checkEmail(null);
-    }
-  }, [email, checkResult, checkEmail]);
-
   return (
     <>
       <div className='flex flex-col gap-[28px] px-[20px] min-h-[calc(100vh-220px)]'>
@@ -81,7 +37,7 @@ export default function SignupStep1({ onPrev, onNext }) {
           )}
         />
 
-        {/* 이메일 */}
+        {/* 연결 테스트 단계에서는 이메일 중복확인을 생략합니다. */}
         <Controller
           name='email'
           control={control}
@@ -91,7 +47,6 @@ export default function SignupStep1({ onPrev, onNext }) {
               value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
               message: '올바른 이메일 형식이 아니에요.',
             },
-            validate: (value) => value === checkResult || '이메일 중복확인을 해주세요.',
           }}
           render={({ field, fieldState }) => (
             <div className='flex flex-col gap-[8px]'>
@@ -107,14 +62,6 @@ export default function SignupStep1({ onPrev, onNext }) {
                   errorMessage={fieldState.error?.message}
                   className='flex-1'
                 />
-                <BasicButton
-                  type='button'
-                  size='2xl'
-                  onClick={() => isCheckEmail(field.value)}
-                  disabled={!field.value || field.value === checkResult || !isValidEmail}
-                >
-                  {field.value === checkResult ? '확인완료' : '중복확인'}
-                </BasicButton>
               </div>
             </div>
           )}

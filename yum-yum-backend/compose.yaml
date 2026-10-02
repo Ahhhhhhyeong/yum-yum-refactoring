@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: yum-yum
+      POSTGRES_USER: ${DB_USER:?DB_USER를 설정해주세요.}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 설정해주세요.}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yum_yum -d yum_yum"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  
+volumes:
+  postgres_data:
+    external: true
+    name: yum-yum-refactoring

@@ -1,21 +1,20 @@
 // 유저 로그인 & 회원가입 상태 확인 훅
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { checkUserEmail, loginUser, registerUser, addUserFireStore } from '../services/userApi';
+import { checkUserEmail, loginUser } from '../services/userApi';
+import { getCurrentUser, signOutFirebase, submitSignup } from '../services/authApi';
 import { useUserStore } from '../stores/useUserStore';
 
 export default function useAuth() {
   const {
     isAuthenticated, // default: false
     setLoading,
-    setError,
     clearError,
     loginSuccess, // 로그인 성공 시 (set)
     loginFailure, // 로그인 실패 시 (set)
     logout: logoutStore, // 로그아웃 시(set)
     checkEmail,
     checkResult, // 이메일 체크한 결과 값(set)
-    signupSuccess,
     signupFailure,
   } = useUserStore();
 
@@ -25,20 +24,34 @@ export default function useAuth() {
       setLoading(true);
       clearError();
 
-      const result = await loginUser({ userid: userId, password });
-      // console.log(result);
-      if (result.success) {
-        loginSuccess(result.user.uid);
+      try {
+        const result = await loginUser({ userid: userId, password });
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+        // Firebase 로그인뿐 아니라 Spring Security의 토큰 인증도 성공해야 로그인 처리합니다.
+        const currentUser = await getCurrentUser();
+        loginSuccess(currentUser.uid);
         toast.success('로그인 성공!');
         return { success: true };
-      } else {
-        loginFailure(result.error);
-        toast.error(result.error);
-        return { success: false, error: result.error };
+      } catch (error) {
+        await signOutFirebase().catch(() => undefined);
+        loginFailure(error.message);
+        toast.error(error.message);
+        return { success: false, error: error.message };
       }
     },
     [setLoading, clearError, loginSuccess, loginFailure],
   );
+
+  const logout = useCallback(async () => {
+    try {
+      await signOutFirebase();
+      logoutStore();
+    } catch {
+      toast.error('로그아웃에 실패했습니다. 다시 시도해주세요.');
+    }
+  }, [logoutStore]);
 
   // 이메일 중복확인
   const useCheckEmail = useCallback(async (userId) => {
@@ -57,27 +70,20 @@ export default function useAuth() {
     setLoading(true);
     clearError();
 
-    // Firebase Authentication 계정 생성
-    const createUserId = await registerUser(user);
-
-    // uid를 포함한 새로운 객체 생성
-    const userWithUid = {
-      ...user,
-      uid: createUserId.user.uid,
-    };
-
-    // FireStore 유저 정보 저장
-    const result = await addUserFireStore(userWithUid);
-    if (result.success) {
-      signupSuccess(userWithUid);
-    } else {
-      signupFailure(result);
+    try {
+      return await submitSignup(user);
+    } catch (error) {
+      signupFailure({ error: error.message });
+      throw error;
+    } finally {
+      setLoading(false);
     }
-  });
+  }, [setLoading, clearError, signupFailure]);
 
   return {
     isAuthenticated,
     login,
+    logout,
     useCheckEmail,
     signUp,
     checkResult,

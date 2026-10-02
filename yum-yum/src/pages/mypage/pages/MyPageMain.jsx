@@ -10,7 +10,7 @@ import MyPageCSItem from '../component/MyPageCSItem';
 import TOSModal from '../component/TOSModal';
 import ConfirmModal from '@/components/modal/ConfirmModal';
 
-import { useUserStore } from '@/stores/useUserStore';
+import useAuth from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -22,7 +22,7 @@ export default function MyPageMain() {
   const { userName, goal, targetWeight, targetExercise, createDays } = useMyPageUserData(userId);
 
   // 로그아웃
-  const { logout } = useUserStore();
+  const { logout } = useAuth();
 
   // 탈퇴
   const { deleteUser } = useDeleteUser();

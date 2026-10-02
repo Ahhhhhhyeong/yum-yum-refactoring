@@ -9,6 +9,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react(), svgr(), tailwindcss()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
   },
