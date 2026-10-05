@@ -11,6 +11,7 @@ import {
   activityUtils,
 } from '@/data/userContext';
 import { editProfile } from '../services/userApi';
+import { MIN_BIRTH_YEAR, getCurrentYear, getMaxYear } from '../utils/birthYear';
 import toast from 'react-hot-toast';
 
 // 커스텀 훅
@@ -175,81 +176,86 @@ const parsedUserSetting = (userData) => {
   const goal = goalsOptionUtils.getLabel(userData.goals['goal']);
   // 사용자 활동량
   const activity = activityUtils.getTitle(userData.goals['targetExercise']);
-  return [
-    {
-      id: 'gender',
-      label: '성별',
-      key: userData.gender,
-      value: usergender,
-      type: 'select',
-      options: gender,
-    },
-    {
-      id: 'age',
-      label: '나이',
-      value: `${userData.age}`,
-      type: 'number',
-      unit: '세',
-      min: 14,
-      max: 120,
-      validationRules: {
-        min: { value: 14, message: '14세 이상만 가입 가능해요.' },
-        max: { value: 120, message: '나이를 다시 확인해주세요.' },
-        pattern: {
-          value: /^\d+$/,
-          message: '숫자만 입력 가능합니다',
+  
+  const parsedUserSetting = (userData) => {
+    if(!userData) return null;
+    const maxYear = getMaxYear();
+    return [
+      {
+        id: 'gender',
+        label: '성별',
+        key: userData.gender,
+        value: usergender,
+        type: 'select',
+        options: gender,
+      },
+      {
+        id: 'birthYear',
+        label: '출생연도',
+        value: `${userData.birthYear}`,
+        type: 'number',
+        unit: '년',
+        min: MIN_BIRTH_YEAR,
+        max: maxYear,
+        validationRules: {
+          min: { value: MIN_BIRTH_YEAR, message: '출생연도를 다시 확인해주세요.' }, 
+          max: { value: maxYear, message: '15세 이상만 가입가능해요.' }, 
+          pattern: {
+            value: /^\d+$/,
+            message: '숫자만 입력 가능합니다',
+          },
         },
       },
-    },
-    {
-      id: 'height',
-      label: '키',
-      value: `${userData.height}`,
-      type: 'number',
-      unit: 'cm',
-      min: 50,
-      max: 250,
-      validationRules: {
-        min: { value: 50, message: '50cm 이상 입력해주세요.' },
-        max: { value: 250, message: '250cm 이하로 입력해주세요.' },
-        pattern: {
-          value: /^(?:\d{1,3}(?:\.\d{1})?|\d{1,2})$/,
-          message: '숫자만 입력 가능하며, 소수점 첫째 자리까지만 입력해주세요',
+      {
+        id: 'height',
+        label: '키',
+        value: `${userData.height}`,
+        type: 'number',
+        unit: 'cm',
+        min: 50,
+        max: 250,
+        validationRules: {
+          min: { value: 50, message: '50cm 이상 입력해주세요.' },
+          max: { value: 250, message: '250cm 이하로 입력해주세요.' },
+          pattern: {
+            value: /^(?:\d{1,3}(?:\.\d{1})?|\d{1,2})$/,
+            message: '숫자만 입력 가능하며, 소수점 첫째 자리까지만 입력해주세요',
+          },
         },
       },
-    },
-    {
-      id: 'targetWeight',
-      label: '목표 체중',
-      value: `${goalWegiht}`,
-      type: 'number',
-      unit: 'kg',
-      min: 30,
-      max: 200,
-      validationRules: {
-        min: { value: 20, message: '20kg 이상 입력해주세요.' },
-        max: { value: 300, message: '300kg 이하로 입력해주세요.' },
-        pattern: {
-          value: /^(?:\d{1,3}(?:\.\d{1})?|\d{1,2})$/,
-          message: '숫자만 입력 가능하며, 소수점 첫째 자리까지만 입력해주세요',
+      {
+        id: 'targetWeight',
+        label: '목표 체중',
+        value: `${goalWegiht}`,
+        type: 'number',
+        unit: 'kg',
+        min: 30,
+        max: 200,
+        validationRules: {
+          min: { value: 20, message: '20kg 이상 입력해주세요.' },
+          max: { value: 300, message: '300kg 이하로 입력해주세요.' },
+          pattern: {
+            value: /^(?:\d{1,3}(?:\.\d{1})?|\d{1,2})$/,
+            message: '숫자만 입력 가능하며, 소수점 첫째 자리까지만 입력해주세요',
+          },
         },
       },
-    },
-    {
-      id: 'goal',
-      label: '목표 설정',
-      key: userData.goals['goal'],
-      value: goal,
-      type: 'select',
-      options: goalsOption,
-    },
-    {
-      id: 'targetExercise',
-      label: '활동량',
-      key: userData.goals['targetExercise'],
-      value: activity,
-      type: 'select',
-      options: activityLevel,
-    },
-  ];
+      {
+        id: 'goal',
+        label: '목표 설정',
+        key: userData.goals['goal'],
+        value: goal,
+        type: 'select',
+        options: goalsOption,
+      },
+      {
+        id: 'targetExercise',
+        label: '활동량',
+        key: userData.goals['targetExercise'],
+        value: activity,
+        type: 'select',
+        options: activityLevel,
+      },
+    ];
+  }
 };

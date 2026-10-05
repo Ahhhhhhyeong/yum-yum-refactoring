@@ -24,14 +24,14 @@ public class FirebaseAuthenticationProvider implements AuthenticationProvider {
     public Authentication authenticate(Authentication authentication) {
         String idToken = ((BearerTokenAuthenticationToken) authentication).getToken();
         try {
-            // 서명·만료·발급자·대상 프로젝트와 함께 폐기/사용 중지 여부도 확인합니다.
+            // 서명·만료·발급자·대상 프로젝트와 함께 폐기/사용 중지 여부도 확인
             FirebaseToken token = firebaseAuth.verifyIdToken(idToken, true);
             FirebasePrincipal principal = new FirebasePrincipal(token.getUid(), token.getEmail());
-            // 클라이언트가 보낸 역할은 신뢰하지 않고, 인증된 사용자에게 USER 권한만 부여합니다.
+            // 클라이언트가 보낸 역할은 신뢰하지 않고, 인증된 사용자에게 USER 권한만 부여
             return UsernamePasswordAuthenticationToken.authenticated(
                     principal, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
         } catch (FirebaseAuthException | IllegalArgumentException exception) {
-            // 토큰 원문이나 Firebase 내부 오류를 응답에 노출하지 않습니다.
+            // 토큰 원문이나 Firebase 내부 오류를 응답에 노출X
             throw new InvalidBearerTokenException("Firebase ID token is invalid", exception);
         }
     }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 // 훅
 import useAuth from '@/hooks/useAuth';
 // 컴포넌트
@@ -25,7 +26,8 @@ export default function SignUpPage() {
       pwCheck: '',
       // step 2
       gender: '',
-      age: '',
+      // age: '', age 대신 birthYear로 수정
+      birthYear: '',
       height: '',
       weight: '',
       // step 3
@@ -36,12 +38,14 @@ export default function SignUpPage() {
     mode: 'onBlur',
   });
   const { signUp } = useAuth();
+  const navigate = useNavigate();
   const [signUpStep, setSignUpStep] = useState(1);
 
   const onSubmit = async (data) => {
     try {
       const result = await signUp(data);
       toast.success(result.message);
+      navigate('/login', { replace: true });
     } catch (error) {
       toast.error(error.message || '회원가입 요청 전송 실패');
     }

@@ -4,6 +4,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 // 컴포넌트
 import BasicButton from '@/components/button/BasicButton';
 import Input from '@/components/common/Input';
+import { getMaxYear, MIN_BIRTH_YEAR } from '../../../../utils/birthYear';
 
 export default function SignupStep2({ onPrev, onNext }) {
   const { control, handleSubmit } = useFormContext();
@@ -13,6 +14,9 @@ export default function SignupStep2({ onPrev, onNext }) {
     { value: 'female', label: '여성' },
     { value: 'male', label: '남성' },
   ];
+
+  // max나이
+  const maxYear = getMaxYear();
 
   return (
     <>
@@ -51,31 +55,31 @@ export default function SignupStep2({ onPrev, onNext }) {
           )}
         />
 
-        {/* 나이 */}
+        {/* 나이 -> 출생연도 */}
         <Controller
-          name='age'
+          name='birthYear'
           control={control}
           rules={{
-            required: '나이를 입력해주세요',
+            required: '출생연도를 입력해주세요',
             pattern: {
               value: /^[0-9]+$/,
               message: '숫자만 입력 가능합니다',
             },
-            min: { value: 14, message: '14세 이상만 가입 가능해요.' },
-            max: { value: 120, message: '나이를 다시 확인해주세요.' },
+            min: { value: MIN_BIRTH_YEAR, message: '출생연도를 다시 확인해주세요.' },
+            max: { value: maxYear, message: '15세 이상만 가입가능해요.' },
           }}
           render={({ field, fieldState }) => (
             <div className='flex flex-col gap-[8px]'>
-              <label htmlFor='age' className='text-sm font-bold text-gray-500'>
-                나이 <strong className='text-secondary font-extrabold'>*</strong>
+              <label htmlFor='birthYear' className='text-sm font-bold text-gray-500'>
+                출생연도 <strong className='text-secondary font-extrabold'>*</strong>
               </label>
               <Input
                 {...field}
-                id='age'
+                id='birthYear'
                 type='number'
                 noSpinner
-                placeholder='0'
-                endAdornment='세'
+                placeholder='1980'
+                endAdornment='년'
                 status={fieldState.error ? 'error' : 'default'}
                 errorMessage={fieldState.error?.message}
               />

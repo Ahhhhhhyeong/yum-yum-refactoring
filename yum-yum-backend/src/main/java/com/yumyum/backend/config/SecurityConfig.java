@@ -23,7 +23,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager manager)
             throws Exception {
         return http
-                // 인증 쿠키를 사용하지 않고 Authorization 헤더로만 인증하는 API입니다.
+                // 인증 쿠키를 사용하지 않고 Authorization 헤더로만 인증
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -33,7 +33,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
                         .requestMatchers("/api/users/me").hasRole("USER")
                         .anyRequest().authenticated())
-                // 기본 BearerTokenAuthenticationFilter가 추출한 토큰을 Firebase Provider로 전달합니다.
+                // 기본 BearerTokenAuthenticationFilter가 추출한 토큰을 Firebase Provider로 전달
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .authenticationManagerResolver(request -> manager))
                 .build();

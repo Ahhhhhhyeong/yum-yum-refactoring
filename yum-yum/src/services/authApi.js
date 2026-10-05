@@ -1,8 +1,33 @@
 // 개발 서버의 /api 프록시를 통해 Spring 백엔드로 전달합니다.
 export async function submitSignup(user) {
-  const { pwCheck, agreeAll, ...request } = user;
-  void pwCheck;
-  void agreeAll;
+  const toInteger = (value, label, required = false) => {
+    if (value == null || String(value).trim() === '') {
+      if (required) throw new Error(`${label}를 입력해주세요.`);
+      return null;
+    }
+    const number = Number(value);
+    if (!Number.isSafeInteger(number)) {
+      throw new Error(`${label}는 정수로 입력해주세요.`);
+    }
+    return number;
+  };
+
+  // SignupRequest에 선언된 필드만 전송합니다. 비밀번호 확인값은 제외합니다.
+  const request = {
+    name: user.name,
+    email: user.email,
+    pw: user.pw,
+    gender: user.gender,
+    birthYear: toInteger(user.birthYear, '출생연도', true),
+    height: toInteger(user.height, '키'),
+    weight: toInteger(user.weight, '체중'),
+    goals: user.goals,
+    targetWeight: user.targetWeight == null ? null : String(user.targetWeight),
+    targetExercise: user.targetExercise,
+    service: user.service === true,
+    privacy: user.privacy === true,
+    sensitive: user.sensitive === true,
+  };
 
   const response = await fetch('/api/auth/signup', {
     method: 'POST',
@@ -10,11 +35,12 @@ export async function submitSignup(user) {
     body: JSON.stringify(request),
   });
 
-  if (!response.ok) {
-    throw new Error(`회원가입 요청 전송에 실패했습니다. (HTTP ${response.status})`);
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result?.success) {
+    throw new Error(result?.message || `회원가입에 실패했습니다. (HTTP ${response.status})`);
   }
 
-  return response.json();
+  return result;
 }
 
 export async function authenticatedRequest(path, options = {}) {

@@ -18,7 +18,7 @@ export default function TOSModal({ isOpenModal, onCloseModal, type }) {
 
               <p>제2조 (회원가입)</p>
               <p className='pb-[12px]'>
-                회원은 이름, 이메일, 비밀번호, 성별, 나이, 키, 현재 체중, 목표 체중(상황에 따라
+                회원은 이름, 이메일, 비밀번호, 성별, 출생연도(나이), 키, 현재 체중, 목표 체중(상황에 따라
                 필수), 활동량(상황에 따라 필수)을 정확히 입력해야 하며, 허위 정보를 기재할 경우
                 서비스 이용이 제한될 수 있습니다.
               </p>
@@ -61,7 +61,7 @@ export default function TOSModal({ isOpenModal, onCloseModal, type }) {
 
               <p className='pt-[12px]'>1. 수집 항목</p>
               <p className='pl-[12px]'>- 이름, 이메일(ID), 비밀번호</p>
-              <p className='pl-[12px]'>- 성별, 나이, 키, 현재 체중, 목표 체중, 활동량</p>
+              <p className='pl-[12px]'>- 성별, 출생연도(나이), 키, 현재 체중, 목표 체중, 활동량</p>
 
               <p className='pt-[12px]'>2. 수집 목적</p>
               <p className='pl-[12px]'>- 회원가입 및 본인 확인</p>

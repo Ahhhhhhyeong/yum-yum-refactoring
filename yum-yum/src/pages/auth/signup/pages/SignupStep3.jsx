@@ -5,7 +5,7 @@ import Input from '@/components/common/Input';
 import BasicButton from '@/components/button/BasicButton';
 
 export default function SignupStep2({ onPrev }) {
-  const { control, watch } = useFormContext();
+  const { control, watch, formState: { isSubmitting } } = useFormContext();
   const targetWeightValue = watch('targetWeight');
 
   // 목표 설정
@@ -135,11 +135,11 @@ export default function SignupStep2({ onPrev }) {
       </div>
 
       <div className='sticky bottom-0 z-30 flex gap-[12px] p-[20px] bg-white'>
-        <BasicButton type='button' size='full' variant='line' onClick={onPrev}>
+        <BasicButton type='button' size='full' variant='line' onClick={onPrev} disabled={isSubmitting}>
           이전
         </BasicButton>
-        <BasicButton size='full' type='submit'>
-          오늘의 냠냠 시작하기
+        <BasicButton size='full' type='submit' disabled={isSubmitting}>
+          {isSubmitting ? '가입 중...' : '회원가입 완료'}
         </BasicButton>
       </div>
     </>

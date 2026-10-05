@@ -1,8 +1,8 @@
 # YUM-YUM Backend
 
 React 프론트엔드와 연동할 Spring Boot 백엔드의 기본 프로젝트입니다.
-회원가입 요청 수신 API와 Firebase ID 토큰을 검증하는 Spring Security 인증을 포함합니다.
-회원가입 시 실제 Firebase 계정 생성과 DB 저장은 이후 추가합니다.
+Firebase 계정 생성 API와 Firebase ID 토큰을 검증하는 Spring Security 인증을 포함합니다.
+회원가입 시 Firebase UID와 프로필·목표·동의·최초 체중을 PostgreSQL에 저장하고, 성공 후 로그인 페이지로 이동합니다.
 
 ## 구성
 
@@ -46,9 +46,17 @@ Vite가 출력하는 주소에서 `/signup`으로 접속하여 가입 폼을 제
 Vite 개발 서버가 `/api` 요청을 `http://localhost:8080`으로 전달하므로 별도 CORS 설정은 필요하지 않습니다.
 이 프록시는 개발 서버에만 적용되며, 배포 환경의 API 연결은 이후 설정합니다.
 
-- `POST /api/auth/signup`: 폼 값을 수신하고 백엔드 콘솔에 `회원가입 요청 수신` 로그를 출력합니다.
-- 비밀번호는 수신 여부만 출력하며, 응답에도 포함하지 않습니다.
-- 테스트 단계에서는 이메일 중복확인을 생략하고 Auth 계정 생성, Firestore 저장, 자동 로그인을 수행하지 않습니다.
+- `POST /api/auth/signup`: Firebase Admin SDK로 이메일·비밀번호 계정을 생성하고 이름을 displayName으로 설정합니다.
+- 성공하면 `/login`으로 이동하며 자동 로그인은 수행하지 않습니다.
+- 중복 이메일은 `409`, 입력값 오류는 `400`, Firebase 서비스 오류는 `503`을 반환합니다.
+- PostgreSQL의 `users`, `user_settings`, `user_consents`, `weight_logs`를 한 트랜잭션으로 저장합니다. 비밀번호는 DB에 저장하지 않습니다.
+- DB 저장 또는 커밋 실패 시 이번 요청에서 생성한 Firebase 계정을 삭제합니다. 삭제까지 실패하면 로그의 `회원가입 복구 필요` UID로 수동 정리해야 합니다.
+- 비밀번호와 건강 정보는 로그에 출력하지 않습니다.
+- 목표 체중을 비워두면 가입 체중을 사용합니다. 가입일과 연도는 `Asia/Seoul` 기준입니다.
+- 현재 API의 키·체중은 정수입니다. 소수 체중 지원은 요청 DTO와 프론트 변환을 함께 변경해야 합니다.
+- 기존 테이블이 필요하며 `spring.jpa.hibernate.ddl-auto=validate`로 `users` 매핑을 검사합니다. Hibernate는 테이블을 생성하거나 변경하지 않습니다.
+- `signup.terms-version`은 현재 약관 스냅샷을 식별하는 `2026-10-05`로 설정했습니다. 약관 변경 시 이 값도 갱신하세요.
+- Firebase Console의 Authentication에서 이메일/비밀번호 로그인을 활성화하고, 프론트엔드와 백엔드가 같은 프로젝트를 사용해야 합니다.
 - 응답 성공 시 프론트엔드에 요청 수신 안내가 표시됩니다. 입력한 값은 저장되지 않습니다.
 
 ## Firebase JWT와 Spring Security
@@ -68,7 +76,7 @@ Spring Security 기본 필터가 요청마다 인증을 수행하고 인증 컨�
 
 | 요청 | 접근 조건 |
 | --- | --- |
-| `POST /api/auth/signup` | 비로그인 허용, 현재는 요청 수신만 수행 |
+| `POST /api/auth/signup` | 비로그인 허용, Firebase 계정 생성 및 PostgreSQL 저장 |
 | `GET /api/users/me` | 유효한 Firebase ID 토큰과 `ROLE_USER` 필요 |
 | 그 외 일반 요청 | 인증 필요 |
 
@@ -78,7 +86,7 @@ Spring Security 기본 필터가 요청마다 인증을 수행하고 인증 컨�
 ### 프론트엔드에서 확인
 
 1. 백엔드와 Vite 개발 서버를 실행합니다.
-2. 기존 Firebase 계정으로 `/login`에서 로그인합니다. 요청 수신용 회원가입 API는 아직 계정을 생성하지 않습니다.
+2. `/signup`에서 가입 후 `/login`으로 이동하는지 확인하고, 생성한 계정으로 로그인합니다. Firebase Console의 Authentication → Users에서도 생성 여부를 확인할 수 있습니다.
 3. 브라우저 개발자 도구의 Network에서 `GET /api/users/me`의 `200` 응답과 `uid`, `email`을 확인합니다.
 4. 로그아웃하면 Firebase 세션과 프론트엔드 로그인 상태를 함께 해제합니다.
 
@@ -112,6 +120,17 @@ curl -i -H 'Authorization: Bearer invalid-token' http://localhost:8080/api/users
 ```
 
 테스트를 실행하고 `build/libs/`에 실행 가능한 JAR를 생성합니다.
-테스트에서는 FirebaseApp과 FirebaseAuth를 Mock으로 대체하므로 서비스 계정 JSON이나 실제 Firebase 연결이 필요하지 않습니다.
-공개 회원가입, 토큰 누락/검증 실패, 유효한 토큰의 사용자 조회, 요청 사이 인증 분리, 권한 부족을 확인합니다.
+기본 테스트에서는 Firebase와 프로필 저장 서비스를 Mock으로 대체하고 DB 자동 설정을 제외하므로 실제 Firebase/DB 연결이나 서비스 계정 JSON이 필요하지 않습니다.
+계정 생성, 중복 이메일·입력값·서비스 오류, DB 실패 시 계정 삭제와 삭제 실패 처리, 토큰 인증을 확인합니다.
+
+실제 PostgreSQL 저장과 롤백 검증은 네 가입 테이블이 있는 개발 DB에서 별도로 실행합니다. Firebase는 Mock을 사용하며 테스트 프로필은 롤백됩니다. ID 시퀀스 값은 증가할 수 있습니다.
+
+```bash
+set -a
+source .env
+set +a
+RUN_DB_TESTS=true ./gradlew test
+```
+
+IntelliJ로 백엔드를 실행할 때는 Run Configuration의 환경변수에 `DB_USER`, `DB_PASSWORD`, `GOOGLE_APPLICATION_CREDENTIALS`를 설정하세요.
 애플리케이션 설정은 `src/main/resources/application.properties`에서 관리합니다.

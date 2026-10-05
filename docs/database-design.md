@@ -32,23 +32,23 @@ React → JWT를 포함한 API 요청 → Spring Security → Service / JPA → 
 | [frequentFoodsApi.js](../yum-yum/src/services/frequentFoodsApi.js) | 최근 식단에서 음식 목록 추출 및 중복 제거 |
 | [nutritionAnalysis.js](../yum-yum/src/services/nutritionAnalysis.js) | 일간·주간·월간 분석, 입력 데이터 해시 기반 캐시와 결과 저장 |
 
-현재 회원가입 API는 요청 수신만 수행하며 실제 계정 생성과 DB 저장은 아직 구현되지 않았다.
+현재 회원가입 API는 Firebase 계정을 생성하고 반환된 UID로 네 회원가입 테이블을 PostgreSQL에 저장한다.
 위 Firebase 저장 구조는 이전 대상인 기존 기능을 설명한다.
 
 ## 추천 테이블
 
-| 테이블 | 저장 내용 | 사용자 관계 |
-| --- | --- | --- |
-| `users` | 내부 ID, Firebase UID, 이름, 이메일, 나이, 성별, 키 | 기준 테이블 |
-| `user_settings` | 현재 목표 유형, 목표 체중, 활동량, 수분 설정 | 1:1 |
-| `user_consents` | 약관 종류, 버전, 동의 여부 및 기록 시각 | 1:N |
-| `weight_logs` | 날짜별 체중 | 1:N, 사용자·날짜 유일 |
-| `water_logs` | 날짜별 수분 증감 기록 | 1:N |
-| `foods` | 음식 출처, 소유자, 음식명, 기준량 | 사용자 전용 음식은 소유자 참조 |
-| `food_nutrients` | 음식 기준량에 대한 영양 정보 | 음식과 1:1 |
-| `meal_entries` | 날짜·끼니별 섭취 음식과 수량, 당시 음식 정보 | 1:N |
-| `meal_entry_nutrients` | 실제 섭취량 기준 영양 정보 | 식단 항목과 1:1 |
-| `ai_reports` | 분석 대상 기간, 결과, 입력 데이터 해시 | 1:N |
+| [-] | 테이블 | 저장 내용 | 사용자 관계 |
+| --- | --- | --- | --- |
+| [x] | `users` | 내부 ID, Firebase UID, 이름, 이메일, 출생연도(나이), 성별, 키 | 기준 테이블 |
+| [x] | `user_settings` | 현재 목표 유형, 목표 체중, 활동량, 수분 설정 | 1:1 |
+| [x] | `user_consents` | 약관 종류, 버전, 동의 여부 및 기록 시각 | 1:N |
+| [x] | `weight_logs` | 날짜별 체중 | 1:N, 사용자·날짜 유일 |
+| [ ] | `water_logs` | 날짜별 수분 증감 기록 | 1:N |
+| [ ] | `foods` | 음식 출처, 소유자, 음식명, 기준량 | 사용자 전용 음식은 소유자 참조 |
+| [ ] | `food_nutrients` | 음식 기준량에 대한 영양 정보 | 음식과 1:1 |
+| [ ] | `meal_entries` | 날짜·끼니별 섭취 음식과 수량, 당시 음식 정보 | 1:N |
+| [ ] | `meal_entry_nutrients` | 실제 섭취량 기준 영양 정보 | 식단 항목과 1:1 |
+| [ ] | `ai_reports` | 분석 대상 기간, 결과, 입력 데이터 해시 | 1:N |
 
 ```mermaid
 erDiagram
@@ -74,16 +74,41 @@ erDiagram
 | `email` | Firebase Auth 및 `users.email` | DB 값은 표시·조회용 복사본, 인증 계정 변경 시 동기화 |
 | `pw` | Firebase Auth | PostgreSQL에 저장하지 않음 |
 | `pwCheck`, `agreeAll` | 저장하지 않음 | 입력 검증 및 화면용 |
-| `name`, `gender`, `age`, `height` | `users` | 기본 프로필 |
+| `name`, `gender`, `birthYear`, `height` | `users` | 기본 프로필, 출생연도는 `birth_year`, 키는 `height_cm` |
 | `goals`, `targetWeight`, `targetExercise` | `user_settings` | 현재 목표 |
 | `weight` | `weight_logs` | 가입일의 최초 체중 기록 |
 | `service`, `privacy`, `sensitive` | `user_consents` | 약관별 한 행 |
 
+회원가입 시 한 트랜잭션으로 다음 행을 INSERT한다. 기존 회원의 UPDATE는 별도 프로필 수정 API의 역할이다.
+
+| 테이블 | 생성 행 수 | 서버에서 채우는 값 |
+| --- | --- | --- |
+| `users` | 1 | 내부 ID, Firebase 생성 결과 UID, 생성·수정 시각 |
+| `user_settings` | 1 | 내부 사용자 ID, 목표 체중 미입력 시 가입 체중, 1회 수분량 500ml, 계산한 수분 목표 |
+| `user_consents` | 3 | 내부 사용자 ID, 약관 종류·서버 약관 버전·동의 여부·기록 시각 |
+| `weight_logs` | 1 | 내부 사용자 ID, 서울 시간 기준 가입일, 최초 체중·생성·수정 시각 |
+
+수분 목표는 백엔드 `WaterIntakeCalculator`에서 기존 프론트엔드 계산 규칙을 유지한다.
+연령은 서울 기준 현재 연도에서 출생연도를 뺀 값이며, 정확한 만 나이는 아니다.
+
+| 연령 | 남성 목표(ml) | 여성 목표(ml) |
+| --- | --- | --- |
+| 1–2 | 1300 | 1300 |
+| 3–5 | 1400 | 1400 |
+| 6–8 | 1700 | 1700 |
+| 9–11 | 2100 | 2100 |
+| 12–14 | 2400 | 2000 |
+| 15–18 | 2700 | 2000 |
+| 19 이상 | 2600 | 2100 |
+
+위 값은 기존 서비스 로직의 이전이며, 현재 회원가입은 연도 기준 15세 이상으로 검증한다.
+
 API에서는 검증된 JWT의 UID로 내부 사용자를 찾는다. 회원가입 시에는 Firebase 계정 생성 결과의 UID를 사용한다.
 클라이언트가 보낸 사용자 ID나 역할을 그대로 신뢰하지 않는다.
 
-현재 가입 폼은 생년월일 대신 나이를 입력받는다. 임의의 생년월일을 만들지 않고 `age`와 `age_as_of_date`를 저장한다.
-현재 나이의 정확한 자동 계산이 필요하면 생년월일 또는 출생 연도 수집 정책을 별도로 결정해야 한다.
+~~현재 가입 폼은 생년월일 대신 나이를 입력받는다. 임의의 생년월일을 만들지 않고 `age`와 `age_as_of_date`를 저장한다.
+현재 나이의 정확한 자동 계산이 필요하면 생년월일 또는 출생 연도 수집 정책을 별도로 결정해야 한다.~~  
+현재 가입 폼은 출생 연도 수집을 진행하여 나이를 자동 계산을 하게 되었다.
 약관 버전은 현재 폼에 없으므로 서버가 실제 약관 버전을 관리해야 한다. 기존 데이터 이전 시 과거 동의 기록을 임의로 생성하지 않는다.
 
 ## 회원가입 관련 초기 SQL 예시
@@ -99,8 +124,7 @@ CREATE TABLE users (
     name VARCHAR(50) NOT NULL,
     gender VARCHAR(10) NOT NULL
         CHECK (gender IN ('female', 'male')),
-    age SMALLINT NOT NULL CHECK (age BETWEEN 14 AND 120),
-    age_as_of_date DATE NOT NULL,
+    birth_year SMALLINT NOT NULL CHECK (birth_year >= 1900),
     height_cm NUMERIC(5, 1) NOT NULL
         CHECK (height_cm BETWEEN 50 AND 250),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
